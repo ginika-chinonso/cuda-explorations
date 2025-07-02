@@ -5,9 +5,9 @@
 */
 int main(int argc, char **argv){
 
-    int first_number = 12;
+    int first_number{12};
 
-    int second_number = 9;
+    int second_number{10};
 
     int sum = first_number + second_number;
 
