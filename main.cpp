@@ -1,6 +1,17 @@
 #include <iostream>
 
-int main(){
-    std::cout << "Hello world!" << std::endl;
+/*
+    The main function takes two or more arguments
+*/
+int main(int argc, char **argv){
+
+    int first_number = 12;
+
+    int second_number = 9;
+
+    int sum = first_number + second_number;
+
+    std::cout << "The sum of the two numbers is: " << sum << std::endl;
+
     return 0;
 }
