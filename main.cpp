@@ -1,17 +1,18 @@
 #include <iostream>
 
 /*
-    The main function takes two or more arguments
+    Reading data from the command line
 */
 int main(int argc, char **argv){
 
-    int first_number{12};
+    std::string name;
+    int age;
 
-    int second_number{10};
+    std::getline(std::cin, name);
 
-    int sum = first_number + second_number;
+    std::cin >> age;
 
-    std::cout << "The sum of the two numbers is: " << sum << std::endl;
+    std::cout << "Hello " << name << ", you are " << age << "years old." << std::endl;
 
     return 0;
 }
