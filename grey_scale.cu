@@ -73,7 +73,7 @@ int main() {
 
     imageBlurDevice(Image, Res, width, height, output_channels);
 
-    *Res = stbi_write_png("output.png", width, height, 1, Res, width);
+    *Res = stbi_write_png("grey_scale_output.png", width, height, 1, Res, width);
 
     stbi_image_free(Image);
     free(Res);
