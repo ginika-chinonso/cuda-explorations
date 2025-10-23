@@ -1,39 +1,91 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-void vecAdd(float *A_h, float *B_h, float *C_h, int n) {
+#include "utils.h"
+
+// Adds two vectors on the host
+void vecAdd_host(float *A_h, float *B_h, float *C_h, int n) {
     for (int i = 0; i < n; ++i) {
         C_h[i] = A_h[i] + B_h[i];
    }
 }
 
 
-void init_array(float *A_h, int array_size) {
-    for (int i = 0; i < array_size; ++i) {
-        A_h[i] = float(i);
+// Vector addition kernel
+__global__ void vecAddKernel(float *A, float *B, float *C, int n) {
+
+    // Calculate global thread Id
+    int i = threadIdx.x + blockIdx.x * blockDim.x;
+
+    // Verify thread is valid
+    if (i < n) {
+        C[i] = A[i] + B[i];
     }
 }
 
 
-int main(int argc, int *argv[]) {
+// Adds two vectors on the device
+// where A,B,C are pointers to the arrays on the host
+void vecAdd_device(float *A, float *B, float *C, int n) {
 
+    // Declare A, B and C matrices on the device
+    float *d_A, *d_B, *d_C;
+   
+    // Allocate memory on deevice for vectors A, B and C
+    cudaMalloc((void **) &d_A, n * sizeof(float));
+    cudaMalloc((void **) &d_B, n * sizeof(float));
+    cudaMalloc((void **) &d_C, n * sizeof(float));
+
+    // Copy vectors A and B from Host to Device
+    cudaMemcpy(d_A, A, n * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_B, B, n * sizeof(float), cudaMemcpyHostToDevice);
+   
+    // Launch kernel to perform vector addition
+    vecAddKernel<<<ceil(n/256.0), 256>>>(d_A, d_B, d_C, n);
+
+   // Copy result from device to host 
+    cudaMemcpy(C, d_C, n * sizeof(float), cudaMemcpyDeviceToHost);
+    
+    // Free device memory of A, B and C
+    cudaFree(d_A);
+    cudaFree(d_B);
+    cudaFree(d_C);
+
+}
+
+
+int main(int argc, char **argv) {
+
+    // Size of vector
     int n = 5;
 
+    // Allocate memory for the A, B and C matrices on the host
     float *A_h = (float *) malloc(n * sizeof(float));
     float *B_h = (float *) malloc(n * sizeof(float));
-    float *C_h = (float *) malloc(n * sizeof(float));
+    float *host_C = (float *) malloc(n * sizeof(float));
+    float *device_C = (float *) malloc(n * sizeof(float));
 
-    init_array(A_h, n);
-    init_array(B_h, n);
+    // Initialize the A and B matrices
+    init_matrix(A_h, 1, n);
+    init_matrix(B_h, 1, n);
 
-    vecAdd(A_h, B_h, C_h, n);
+    // Call host vector add function
+    vecAdd_host(A_h, B_h, host_C, n);
 
-    for (int i = 0; i < n; ++i) {
-       printf("%f\n", C_h[i]);        
-    }
+    // Call device vector add function
+    vecAdd_device(A_h, B_h, device_C, n);
+
+    // TODO:
+    // Assert that host_C and device_C are the same
+
+    // Print device result
+    print_matrix(device_C, 1, n);
+
+    // Free A, B and C matrices
     free(A_h);
     free(B_h);
-    free(C_h);
+    free(host_C);
+    free(device_C);
     
     return 0;
 }
