@@ -7,3 +7,4 @@ This repo contains implementations of CUDA kernels implemented for fun and explo
 - [Coloured Image Blur](./coloured_image_blur.cu): Kernel to blur a coloured image
 - [Grey Scale Image Blur](./grey_scale_image_blur.cu): Kernel to generate a grey scale blured version of a coloured image.
 - [Matrix Multiplication](./matmul.cu): Kernel to multiply two matrices.
+- [Tiled Matrix Multiplication](./tiled_matmul.cu): Kernel to multiply two matrices using the tiling method
