@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 
 #include "utils.h"
 
@@ -81,7 +82,7 @@ void matMulHost(float *A, float *B, float *C, int m, int n, int k) {
 int main() {
 
     // Declare matrices
-    float *A, *B, *C;
+    float *A, *B, *host_C, *device_C;
 
     // Instantiate matrix sizes
     int m = 5;
@@ -91,24 +92,33 @@ int main() {
     // Allocate memory for arrays
     A = (float *) malloc(m * n * sizeof(float));
     B = (float *) malloc(n * k * sizeof(float));
-    C = (float *) malloc(m * k * sizeof(float));
+    host_C = (float *) malloc(m * k * sizeof(float));
+    device_C = (float *) malloc(m * k * sizeof(float));
 
     // Instantiate matrices A and B
     init_matrix(A, m , n);
     init_matrix(B, n , k);
-    init_with_zeros(C, m, k);
+    init_with_zeros(host_C, m, k);
+    init_with_zeros(device_C, m, k);
 
     // Call Matmul device function
-    matMulHost(A, B, C, m, n, k);
+    matMulDevice(A, B, device_C, m, n, k);
+    
+    // Call Matmul host function
+    matMulHost(A, B, host_C, m, n, k);
 
-    printf("Result matrix, C: \n");
+    // Verify correct result
+    for (int i = 0; i < m * k; ++i) {
+        assert(host_C[i] == device_C[i]);
+    }
 
-    // Print result
-    print_matrix(C, m, k);
+    printf("Host and Device results are correct");
 
+    // Free A, B and C matrices memory
     free(A);
     free(B);
-    free(C);
+    free(host_C);
+    free(device_C);
 
     return 0;
 
