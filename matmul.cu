@@ -58,15 +58,35 @@ void matMulDevice(float *A_h, float *B_h, float *C_h, int m, int n, int k) {
     cudaFree(C_d);
 }
 
+// Calculate the product of two matrices on the host
+void matMulHost(float *A, float *B, float *C, int m, int n, int k) {
+
+    // loop through every row in A
+    for (int i = 0; i < m; ++i) {
+        
+        // loop through every column of B
+        for (int j = 0; j < k; ++j) {
+
+            // loop through every columns value
+            for (int index = 0; index < n; ++index) {
+                C[i * k + j] += A[i * n + index] * B[index * k + j];
+            }
+            
+        }
+        
+    }
+}
+
+
 int main() {
 
     // Declare matrices
     float *A, *B, *C;
 
     // Instantiate matrix sizes
-    int m = 100;
-    int n = 50;
-    int k = 100;
+    int m = 5;
+    int n = 5;
+    int k = 5;
 
     // Allocate memory for arrays
     A = (float *) malloc(m * n * sizeof(float));
@@ -76,9 +96,10 @@ int main() {
     // Instantiate matrices A and B
     init_matrix(A, m , n);
     init_matrix(B, n , k);
+    init_with_zeros(C, m, k);
 
     // Call Matmul device function
-    matMulDevice(A, B, C, m, n, k);
+    matMulHost(A, B, C, m, n, k);
 
     printf("Result matrix, C: \n");
 
