@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 
 #include "utils.h"
 
@@ -75,11 +76,12 @@ int main(int argc, char **argv) {
     // Call device vector add function
     vecAdd_device(A_h, B_h, device_C, n);
 
-    // TODO:
     // Assert that host_C and device_C are the same
+    for (int i = 0; i < n; ++i) {
+        assert(host_C[i] == device_C[i]);
+    }
 
-    // Print device result
-    print_matrix(device_C, 1, n);
+    printf("Host and device results match");
 
     // Free A, B and C matrices
     free(A_h);
