@@ -3,6 +3,44 @@
 #include <assert.h>
 #include "utils.h"
 
+#define TILE_WIDTH 32
+#define COARSE_FACTOR 4
+
+__global__ void coarseTiledMatMulKernel(float *A, float *B, float *C, int m, int n, int k) {
+    //
+}
+
+void coarsedMatMulDevice(float *A_h, float *B_h, float *C_h, int m, int n, int k) {
+   
+    // Declare device matrices
+    float *A_d, *B_d, *C_d;
+
+    // Allocate memory for the A,B and C matrices
+    A_d = (float *) cudaMalloc(&A_d, m * n * sizeof(float));
+    B_d = (float *) cudaMalloc(&B_d, n * k * sizeof(float));
+    C_d = (float *) cudaMalloc(&A_d, m * k * sizeof(float));
+
+    // Copy matrices A and B to device
+    cudaMemcpy(A_d, A_h, m * n * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(B_d, B_h, n * k * sizeof(float), cudaMemcpyHostToDevice);
+
+    // Instantiate grid and block dimensions
+    dim3 grid_dim(ceil(m/float(TILE_WIDTH)), ceil(k/float(TILE_WIDTH)), 1);
+    dim3 block_dim(TILE_WIDTH, TILE_WIDTH, 1);
+
+    // Call coarsed tiled mat mut kernel
+    coarseTiledMatMulKernel<<<grid_dim, block_dim>>>(A_d, B_d, C_d, m, n, k);
+
+    // Copy result from device back to host
+    cudaMemcpy(C_h, C_d, m * k * sizeof(float), cudaMemcpyDeviceToHost);
+
+    // Free matrices
+    cudaFree(A_d);
+    cudaFree(B_d);
+    cudaFree(C_d);
+
+}
+
 int main() {
 
     // Instantiate matrix sizes
