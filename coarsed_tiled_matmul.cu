@@ -11,6 +11,7 @@ __global__ void coarseTiledMatMulKernel(float *A, float *B, float *C, int m, int
     // Output tiles share the same row
     // Get the said row for the thread
     int row = blockIdx.y * TILE_WIDTH + threadIdx.y;
+    int col_start = blockIdx.x * TILE_WIDTH * COARSE_FACTOR + threadIdx.x;
 
     // Declare shared memory for A and B
     __shared__ float shared_A[TILE_WIDTH][TILE_WIDTH];
@@ -25,23 +26,23 @@ __global__ void coarseTiledMatMulKernel(float *A, float *B, float *C, int m, int
     }
 
     // Get the expected number of phases
-    int no_of_phases = n / (float) TILE_WIDTH;
+    int no_of_phases = (n + TILE_WIDTH - 1) / TILE_WIDTH;
 
     // Get the column value for the corresponding coarsing index
     // For a particular output, we need to get the corresponding phase
     for (int phase = 0; phase < no_of_phases; phase++) {
         
         // Store the thread's corresponding row value of A in shared memory
-        shared_A[threadIdx.y][threadIdx.x] = A[row * n + phase * TILE_WIDTH + threadIdx.x];
-
+        shared_A[threadIdx.y][threadIdx.x] = (row < m && (phase * TILE_WIDTH + threadIdx.x) < n ? A[row * n + phase * TILE_WIDTH + threadIdx.x] : 0.0f);
+        
         // Each kernel performs coarsing factor number of dot products for the output
         for (int coarse_index = 0; coarse_index < COARSE_FACTOR; coarse_index++) {
             
             // Get the required column
-            int col = (blockIdx.x * TILE_WIDTH * coarse_index) + threadIdx.x;
+            int col = col_start + coarse_index * TILE_WIDTH;
 
             // Store the threads corresponding B value in shared memory
-            shared_B[threadIdx.y][threadIdx.x] = B[k * (phase * TILE_WIDTH + threadIdx.y) + col];
+            shared_B[threadIdx.y][threadIdx.x] = (col < k && (phase * TILE_WIDTH + threadIdx.y) < n ? B[k * (phase * TILE_WIDTH + threadIdx.y) + col] : 0.0f);
 
             __syncthreads();
 
@@ -58,8 +59,10 @@ __global__ void coarseTiledMatMulKernel(float *A, float *B, float *C, int m, int
 
     // Store result in back in C
     for (int i = 0; i < COARSE_FACTOR; ++i) {
-        int col = (blockIdx.x * TILE_WIDTH * i) + threadIdx.x;
-        C[row * k + col] = c_values[i];
+        int col = col_start + i * TILE_WIDTH;
+        if (row < m && col < k) {
+            C[row * k + col] = c_values[i];
+        }
     }
 
 }
@@ -79,7 +82,7 @@ void coarsedMatMulDevice(float *A_h, float *B_h, float *C_h, int m, int n, int k
     cudaMemcpy(B_d, B_h, n * k * sizeof(float), cudaMemcpyHostToDevice);
 
     // Instantiate grid and block dimensions
-    dim3 grid_dim(ceil(k/float(TILE_WIDTH * COARSE_FACTOR)), ceil(m/float(TILE_WIDTH * COARSE_FACTOR)), 1);
+    dim3 grid_dim(ceil(k/float(TILE_WIDTH * COARSE_FACTOR)), ceil(m/float(TILE_WIDTH)), 1);
     dim3 block_dim(TILE_WIDTH, TILE_WIDTH, 1);
 
     // Call coarsed tiled mat mut kernel
@@ -98,9 +101,9 @@ void coarsedMatMulDevice(float *A_h, float *B_h, float *C_h, int m, int n, int k
 int main() {
 
     // Instantiate matrix sizes
-    int m = 10;
-    int n = 10;
-    int k = 10;
+    int m = 32;
+    int n = 32;
+    int k = 32;
 
     // Declare A,B and C matrices
     float *A, *B, *host_C, *device_C;
@@ -124,13 +127,12 @@ int main() {
     coarsedMatMulDevice(A, B, device_C, m, n, k);
 
     // Check that device result is equal to host result
-    for (int i = 0; i < 10; ++i) {
-
-        printf("Device: %f\n", device_C[i]);
-        printf("Host: %f\n", host_C[i]);
-        
-        // assert(device_C[i] == host_C[i]);
+    for (int i = 0; i < m * k; ++i) {
+        assert(device_C[i] == host_C[i]);
     }
+
+    // print result
+    print_matrix(device_C, m, k);
 
     // Free A,B and C matrices
     free(A);
