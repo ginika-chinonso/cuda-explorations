@@ -1,16 +1,35 @@
 // Constant memory convolution kernel
 #include <stdio.h>
-#include "utils.h";
+#include "utils.h"
 
-#define filter_width 5
-#define filter_height 5
+#define filter_radius 2
 #define TILE_WIDTH 32
 
-__constant__ float Filter[filter_height][filter_width];
+__constant__ float Filter[2 * filter_radius + 1][2 * filter_radius + 1];
 
 
-__global__ void constantMemoryConvolutionKernel() {
-  //
+__global__ void constantMemoryConvolutionKernel(float *In, float *Out, int height, int width) {
+  
+  int row = blockIdx.y * TILE_WIDTH + threadIdx.y;
+  int col = blockIdx.x * TILE_WIDTH + threadIdx.x;
+
+  float res = 0;
+
+  for (int fRow = 0 ; fRow < 2 * filter_radius + 1; ++fRow) {
+    for (int fCol = 0; fCol < 2 * filter_radius + 1; ++fCol) {
+
+      int in_x = row - filter_radius + fRow;
+      int in_y = col - filter_radius + fCol;
+
+      if (in_x > 0 && in_x < width && in_y > 0 && in_y < height) {
+        res += Filter[fRow][fCol] * In[in_y * width + in_x];
+      } 
+
+    }
+    
+  }
+
+  Out[row * width + col] = res;
 }
 
 void constantMemoryConvolutionDevice(float *In, float *Out, int height, int width) {
@@ -30,7 +49,7 @@ void constantMemoryConvolutionDevice(float *In, float *Out, int height, int widt
   dim3 block_dim(TILE_WIDTH, TILE_WIDTH, 1);
 
   // call the constant memory convolution kernel
-  constantMemoryConvolutionKernel<<<grid_dim, block_dim>>>();
+  constantMemoryConvolutionKernel<<<grid_dim, block_dim>>>(In_d, Out_d, height, width);
 
   // Copy result from device to host
   cudaMemcpy(Out, Out_d, height * width * sizeof(float), cudaMemcpyDeviceToHost);
@@ -57,12 +76,21 @@ int main() {
 
   // Initialize input array
   init_matrix(In, height, width);
-  init_matrix(Out, height, width);
-  init_matrix((float *) Filter, filter_height, filter_width);
+  init_matrix((float *) Filter, 2 * filter_radius + 1, 2 * filter_radius + 1);
+  
+  printf("Input matrix: \n");
+  print_matrix(In, height, width);
+  
+  printf("Filter matrix: \n");
+  print_matrix((float *)Filter, 2 * filter_radius + 1, 2 * filter_radius + 1);
 
   // Call device fuction
   constantMemoryConvolutionDevice(In, Out, height, width);
 
+  printf("Result matrix: \n");
   print_matrix(Out, height, width);
 
+  // Free host variables
+  free(In);
+  free(Out);
 }
