@@ -41,8 +41,33 @@ void vecAdd_device(float *A, float *B, float *C, int n) {
     cudaMemcpy(d_A, A, n * sizeof(float), cudaMemcpyHostToDevice);
     cudaMemcpy(d_B, B, n * sizeof(float), cudaMemcpyHostToDevice);
    
+    // Declare timers
+    cudaEvent_t start, stop;
+
+    // Create start and stop events
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+
+    // Record start event
+    cudaEventRecord(start);
+
     // Launch kernel to perform vector addition
     vecAddKernel<<<ceil(n/256.0), 256>>>(d_A, d_B, d_C, n);
+
+    // Record stop event
+    cudaEventRecord(stop);
+
+    // Synchronize stop event to be sure it has been recorded
+    cudaEventSynchronize(stop);
+
+    // Declare elapsed time variable
+    float elapsed_time;
+
+    // Calculate time elapsed
+    cudaEventElapsedTime(&elapsed_time, start, stop);
+
+    // Print time elapsed
+    printf("Vector add kernel took %f ms\n", elapsed_time);
 
    // Copy result from device to host 
     cudaMemcpy(C, d_C, n * sizeof(float), cudaMemcpyDeviceToHost);
@@ -51,6 +76,10 @@ void vecAdd_device(float *A, float *B, float *C, int n) {
     cudaFree(d_A);
     cudaFree(d_B);
     cudaFree(d_C);
+
+    // Destroy start and stop events
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
 
 }
 
@@ -81,7 +110,7 @@ int main(int argc, char **argv) {
         assert(host_C[i] == device_C[i]);
     }
 
-    printf("Host and device results match");
+    printf("Host and device results match \n");
 
     // Free A, B and C matrices
     free(A_h);
